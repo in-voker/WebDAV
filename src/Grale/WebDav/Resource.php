@@ -345,6 +345,10 @@ class Resource implements LockableInterface
 
         $stat['size'] = $stat[7] = $this->getContentLength();
 
+        if ($this->hasProperty('getcontenttype')) {
+            $stat['mime'] = $this->getProperty('getcontenttype');
+        }
+
         return $stat;
     }
 }
