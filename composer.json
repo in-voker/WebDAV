@@ -1,5 +1,5 @@
 {
-    "name": "grale/webdav",
+    "name": "egroupware/webdav",
     "description": "A simple PHP WebDAV client and stream wrapper",
     "keywords": ["PHP","WebDAV","Stream","Wrapper"],
     "homepage": "https://github.com/gletournel/WebDAV",
