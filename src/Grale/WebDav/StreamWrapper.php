@@ -581,7 +581,7 @@ class StreamWrapper
             $result   = $resource->getFilename();
 
             // Cache the resource statistics for quick url_stat lookups
-            $url = (string)Url::factory($this->openedPath)->combine($resource->getHref());
+            $url = rtrim((string)Url::factory($this->openedPath)->combine($resource->getHref()), '/');
             self::$statCache[$url] = $resource->getStat();
 
             $this->iterator->next();
@@ -640,8 +640,8 @@ class StreamWrapper
             $url = $this->resolveUrl($path);
 
             // Check if this URL is in the url_stat cache
-            if (isset(self::$statCache[(string)$url])) {
-                return self::$statCache[(string)$url];
+            if (isset(self::$statCache[$key = rtrim((string)$url, '/')])) {
+                return self::$statCache[$key];
             }
 
             $multistatus = self::$client->propfind($url, array('depth' => 0));
@@ -651,7 +651,7 @@ class StreamWrapper
 
                 if ($response->hasResource()) {
                     $result = $response->getResource()->getStat();
-                    self::$statCache[(string)$url] = $result;
+                    self::$statCache[$key] = $result;
                 }
             }
         } catch (\Exception $exception) {
@@ -846,7 +846,7 @@ class StreamWrapper
      */
     protected function clearStatCache($path = null)
     {
-        self::$statCache = array();
+        //self::$statCache = array();
 
         if ($path !== null) {
             clearstatcache(true, (string)$path);
