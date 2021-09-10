@@ -647,7 +647,7 @@ class StreamWrapper
             $multistatus = self::$client->propfind($url, array('depth' => 0));
 
             if ($multistatus->count() > 0) {
-                $response = current($multistatus->getIterator());
+                $response = $multistatus->getIterator()->current();
 
                 if ($response->hasResource()) {
                     $result = $response->getResource()->getStat();
