@@ -12,9 +12,15 @@
             "email": "geoffroy.letournel@gmail.com"
         }
     ],
+    "repositories": [
+        {
+	    "type": "vcs",
+            "url": "https://github.com/egroupware/guzzlehttp"
+        }
+    ],
     "require": {
         "php": ">=5.3.0",
-        "guzzle/http": "~3.0",
+        "egroupware/guzzlehttp": "^3.9.3",
         "psr/log": "~1.0"
     },
     "require-dev": {
