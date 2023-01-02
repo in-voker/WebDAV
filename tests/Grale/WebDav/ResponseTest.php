@@ -19,13 +19,11 @@ use PHPUnit\Framework\TestCase;
  */
 class ResponseTest extends TestCase
 {
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Status is expected to be an integer or an array
-     */
-    public function testInvalidResponse()
+	public function testInvalidResponse()
     {
-        new Response('http://foo.bar', new \StdClass());
+		$this->expectExceptionMessage("Status is expected to be an integer or an array");
+		$this->expectException(\InvalidArgumentException::class);
+		new Response('http://foo.bar', new \StdClass());
     }
 
     public function testHrefStatusResponse()

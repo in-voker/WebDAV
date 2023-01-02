@@ -59,13 +59,11 @@ class LockTest extends TestCase
         $this->assertTrue($this->lock->isDeep());
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Values other than 0 or infinity MUST NOT be used with the Depth header on a lock
-     */
-    public function testInvalidDepth()
+	public function testInvalidDepth()
     {
-        $this->lock->setDepth(1);
+		$this->expectExceptionMessage("Values other than 0 or infinity MUST NOT be used with the Depth header on a lock");
+		$this->expectException(\InvalidArgumentException::class);
+		$this->lock->setDepth(1);
     }
 
     public function testOwner()
@@ -92,31 +90,25 @@ class LockTest extends TestCase
         $this->assertEquals(TimeoutHeader::INFINITE, $this->lock->getTimeout());
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage The lock type specified is not supported
-     */
-    public function testInvalidLockType()
+	public function testInvalidLockType()
     {
-        new Lock('exclusive', 'read');
+		$this->expectExceptionMessage("The lock type specified is not supported");
+		$this->expectException(\InvalidArgumentException::class);
+		new Lock('exclusive', 'read');
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage The locking mechanism specified is not supported
-     */
-    public function testInvalidLockScope()
+	public function testInvalidLockScope()
     {
-        new Lock('advisory');
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage("The locking mechanism specified is not supported");
+		new Lock('advisory');
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage
-     */
-    public function testFromInvalidXml()
+	public function testFromInvalidXml()
     {
-        $dom = new \DOMDocument();
+		$this->expectExceptionMessage("");
+		$this->expectException(\InvalidArgumentException::class);
+		$dom = new \DOMDocument();
         $dom->loadXML('<?xml version="1.0" encoding="utf-8"?><html></html>');
         Lock::fromXml($dom->documentElement);
     }
