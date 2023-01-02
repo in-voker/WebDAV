@@ -9,16 +9,14 @@
  */
 namespace Grale\WebDav;
 
-use Guzzle\Http\Url;
-use Guzzle\Http\EntityBody;
-use Guzzle\Http\Client as HttpClient;
-use Guzzle\Http\Message\Response as HttpResponse;
-use Guzzle\Http\Message\RequestInterface as HttpRequest;
-use Guzzle\Http\Exception\BadResponseException;
-use Guzzle\Stream\PhpStreamRequestFactory;
+use GuzzleHttp\Client as HttpClient;
+use GuzzleHttp\Message\Response as HttpResponse;
+use GuzzleHttp\Message\RequestInterface as HttpRequest;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\BadResponseException;
 use Grale\WebDav\Exception\NoSuchResourceException;
-use Grale\WebDav\Exception\HttpException;
 use Grale\WebDav\Header\TimeoutHeader;
+use GuzzleHttp\Psr7\UriResolver;
 
 /**
  * WebDAV client
@@ -139,7 +137,7 @@ class WebDavClient
         $request = $this->createRequest('GET', $uri);
         $response = $this->doRequest($request);
         
-        return $response->isSuccessful() ? $response->getBody(true) : null;
+        return $response->isSuccessful() ? stream_get_contents($response->getBody()) : null;
     }
 
     /**
@@ -148,23 +146,15 @@ class WebDavClient
      * @param string $uri
      *            Resource URI
      *            
-     * @return EntityBody Returns the stream resource on success or false on failure
+     * @return Stream Returns the stream resource on success or false on failure
      * @throws \RuntimeException If the stream cannot be opened or an error occurs
      */
     public function getStream($uri)
     {
-        $request = $this->createRequest('GET', $uri);
-        
-        $factory = new PhpStreamRequestFactory();
-        $stream = $factory->fromRequest($request, array(), array(
-            'stream_class' => 'Guzzle\Http\EntityBody'
-        ));
-        
-        // The implementation of streaming download proposed by Guzzle's EntityBody class does not care about
-        // HTTP errors. As a workaround, let's rebuild the HTTP response from the response headers sent in the
-        // $http_response_header variable (http://www.php.net/manual/en/reserved.variables.httpresponseheader.php)
-        $response = HttpResponse::fromMessage(implode("\r\n", $factory->getLastResponseHeaders()));
-        
+        $request = $this->createRequest('GET', $uri, ['stream'=>true]);
+		$response = $this->getHttpClient()->send($request);
+		$stream = $response->getBody();
+
         // Creates History
         $this->lastRequest = $request;
         $this->lastResponse = $response;
@@ -635,7 +625,7 @@ class WebDavClient
         if (substr($uri, 0, 4) == 'http') {
             $url = $uri;
         } else {
-            $url = Url::factory($this->baseUrl)->combine($uri);
+			$url = UriResolver::resolve($this->baseUrl,$uri);
         }
         
         return (string) $url;
@@ -648,7 +638,7 @@ class WebDavClient
      *            The request
      *            
      * @throws Exception\NoSuchResourceException
-     * @throws Exception\HttpException
+     * @throws RequestException
      * @return HttpResponse Returns the server response
      */
     protected function doRequest(HttpRequest $request)
@@ -660,7 +650,7 @@ class WebDavClient
         $this->lastResponse = null;
         
         try {
-            $response = $request->send();
+            $response = $this->getHttpClient()->send($request);
         } catch (BadResponseException $error) {
             $response = $error->getResponse();
         }
@@ -673,7 +663,7 @@ class WebDavClient
                 case 404:
                     throw new NoSuchResourceException('No such file or directory');
                 default:
-                    throw HttpException::factory($error);
+                    throw RequestException::wrapException($request,$error);
             }
         }
         

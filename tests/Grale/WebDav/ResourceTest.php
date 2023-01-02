@@ -14,11 +14,12 @@ use Grale\WebDav\Property\DateTimeProperty;
 use Grale\WebDav\Property\ResourceType;
 use Grale\WebDav\Property\SupportedLock;
 use Grale\WebDav\Property\LockDiscovery;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers Grale\WebDav\Resource
  */
-class ResourceTest extends \PHPUnit_Framework_TestCase
+class ResourceTest extends TestCase
 {
     /**
      * @var \Grale\WebDav\Resource
@@ -35,7 +36,7 @@ class ResourceTest extends \PHPUnit_Framework_TestCase
      */
     protected $lock;
 
-    public function setUp()
+    public function setUp() : void
     {
         $properties = new PropertySet();
         $properties['D:displayname'] = 'Example collection';

@@ -10,26 +10,28 @@
 
 namespace Grale\WebDav;
 
-use Guzzle\Http\EntityBody;
+use GuzzleHttp\Psr7\Stream;
+use GuzzleHttp\Psr7\Utils;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers Grale\WebDav\StreamWrapper
  */
-class StreamWrapperTest extends \PHPUnit_Framework_TestCase
+class StreamWrapperTest extends TestCase
 {
     /**
      * @var \PHPUnit_Framework_MockObject_MockObject
      */
     protected $client;
 
-    public function setUp()
+    public function setUp() : void
     {
         $httpClient = $this->getMockBuilder('\Guzzle\Http\Client')->getMock();
         $wdavClient = $this->getMockBuilder('\Grale\WebDav\WebDavClient')->getMock();
 
         $wdavClient->expects($this->any())->method('getHttpClient')->will($this->returnValue($httpClient));
 
-        $stream = EntityBody::fromString('Hello World!');
+        $stream = Utils::streamFor('Hello World!');
         $wdavClient->expects($this->any())->method('getStream')->will($this->returnValue($stream));
 
         $propfind = MultiStatus::parse(
@@ -45,7 +47,7 @@ class StreamWrapperTest extends \PHPUnit_Framework_TestCase
         StreamWrapper::register(null, $this->client);
     }
 
-    public function tearDown()
+    public function tearDown() : void
     {
         foreach (array('webdav', 'webdavs') as $wrapper) {
             if (in_array($wrapper, stream_get_wrappers())) {

@@ -10,57 +10,57 @@
 
 namespace Grale\WebDav\Exception;
 
-use Guzzle\Http\Message\Response;
-use Guzzle\Http\Message\RequestFactory;
-use Guzzle\Http\Exception\BadResponseException;
+
+use GuzzleHttp\Exception\BadResponseException;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ServerException;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers Grale\WebDav\Exception\HttpException
  */
-class HttpExceptionTest extends \PHPUnit_Framework_TestCase
+class HttpExceptionTest extends TestCase
 {
     protected $request;
 
-    public function setUp()
+    public function setUp() : void
     {
-        $this->request = RequestFactory::getInstance()->fromMessage(
-            "GET /container/ HTTP/1.1\r\n" .
-            "Host: www.foo.bar\r\n"
-        );
+        $this->request = new Request('GET','/container/',[
+            "Host"=>"www.foo.bar"
+        ]);
     }
 
     public function testClientFailureException()
     {
         $response = new Response(400);
 
-        $e = BadResponseException::factory(
+        $httpException = RequestException::create(
             $this->request,
             $response
         );
 
-        $httpException = HttpException::factory($e);
-
-        $this->assertInstanceOf('\Grale\WebDav\Exception\ClientFailureException', $httpException);
-        $this->assertEquals((string)$this->request, $httpException->getRequest());
-        $this->assertEquals((string)$response, $httpException->getResponse());
-        $this->assertEquals(400, $httpException->getStatusCode());
+        $this->assertInstanceOf(ClientException::class, $httpException);
+        $this->assertEquals($this->request, $httpException->getRequest());
+        $this->assertEquals($response, $httpException->getResponse());
+        $this->assertEquals(400, $httpException->getResponse()->getStatusCode());
     }
 
     public function testServerFailureException()
     {
         $response = new Response(500);
 
-        $e = BadResponseException::factory(
+        $httpException = RequestException::create(
             $this->request,
             $response
         );
 
-        $httpException = HttpException::factory($e);
-
-        $this->assertInstanceOf('\Grale\WebDav\Exception\ServerFailureException', $httpException);
-        $this->assertEquals((string)$this->request, $httpException->getRequest());
-        $this->assertEquals((string)$response, $httpException->getResponse());
-        $this->assertEquals(500, $httpException->getStatusCode());
+        $this->assertInstanceOf(ServerException::class, $httpException);
+        $this->assertEquals($this->request, $httpException->getRequest());
+        $this->assertEquals($response, $httpException->getResponse());
+        $this->assertEquals(500, $httpException->getResponse()->getStatusCode());
     }
 
     /**
@@ -71,17 +71,15 @@ class HttpExceptionTest extends \PHPUnit_Framework_TestCase
      */
     public function testErrorDescriptions($httpMethod, $statusCode, $description)
     {
-        $request = RequestFactory::getInstance()->fromMessage(
-            "$httpMethod /container/ HTTP/1.1\r\n" .
-            "Host: www.foo.bar\r\n"
-        );
+        $request = new Request($httpMethod,'/container/',[
+			'Host'=>'www.foo.bar'
+		]);
 
         $response = new Response($statusCode);
 
-        $prevException = BadResponseException::factory($request, $response);
-        $httpException = HttpException::factory($prevException);
+        $httpException = BadResponseException::create($request, $response);
 
-        $this->assertEquals($description, $httpException->getDescription());
+        $this->assertEquals($description, $httpException->getMessage());
     }
 
     public function getErrorMapping()

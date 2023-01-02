@@ -10,7 +10,9 @@
 
 namespace Grale\WebDav;
 
-class PropertySetTest extends \PHPUnit_Framework_TestCase
+use PHPUnit\Framework\TestCase;
+
+class PropertySetTest extends TestCase
 {
     protected static $properties = array(
         'R:bigbox',
@@ -26,7 +28,7 @@ class PropertySetTest extends \PHPUnit_Framework_TestCase
      */
     protected $props;
 
-    public function setUp()
+    public function setUp() : void
     {
         $this->props = new PropertySet(self::$properties);
     }

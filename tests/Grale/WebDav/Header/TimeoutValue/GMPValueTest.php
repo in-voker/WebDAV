@@ -1,12 +1,14 @@
 <?php
 namespace Grale\WebDav\Header\TimeoutValue;
 
+use PHPUnit\Framework\TestCase;
+
 /**
  *
  * @author samizdam
  *        
  */
-class GMPValueTest extends \PHPUnit_Framework_TestCase
+class GMPValueTest extends TestCase
 {
 
     public function testToString()

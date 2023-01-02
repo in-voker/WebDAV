@@ -12,11 +12,12 @@ namespace Grale\WebDav;
 
 use Grale\WebDav\Property\DateTimeProperty;
 use Grale\WebDav\Property\ResourceType;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers Grale\WebDav\Response
  */
-class ResponseTest extends \PHPUnit_Framework_TestCase
+class ResponseTest extends TestCase
 {
     /**
      * @expectedException \InvalidArgumentException

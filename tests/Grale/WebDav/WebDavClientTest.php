@@ -9,15 +9,15 @@
  */
 namespace Grale\WebDav;
 
-use Guzzle\Http\Message\Request;
-use Guzzle\Http\Message\Response;
-use Guzzle\Http\Message\RequestFactory;
-use Guzzle\Http\Exception\BadResponseException;
+use GuzzleHttp\Client;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers Grale\WebDav\Client
  */
-class WebDavClientTest extends \PHPUnit_Framework_TestCase
+class WebDavClientTest extends TestCase
 {
 
     public function testBaseUrl()
@@ -713,18 +713,16 @@ class WebDavClientTest extends \PHPUnit_Framework_TestCase
     /**
      *
      * @param \Guzzle\Http\Message\Response $response            
-     * @return \Guzzle\Http\Client
+     * @return \GuzzleHttp\Client
      */
     protected function getHttpClientMock(Response $response)
     {
-        $client = $this->getMockBuilder('\Guzzle\Http\Client')
-            ->setMethods(array(
-            'send'
-        ))
+        $client = $this->getMockBuilder('\GuzzleHttp\Client')
+            ->setMethods(array('send'))
             ->getMock();
-        
-        if ($response->isError()) {
-            $request = $this->getMockBuilder('\Guzzle\Http\Message\Request')
+		$level = (int) \floor($response->getStatusCode() / 100);
+        if ($level == 4 || $level == 5) {
+            $request = $this->getMockBuilder(Request::class)
                 ->disableOriginalConstructor()
                 ->getMock();
             

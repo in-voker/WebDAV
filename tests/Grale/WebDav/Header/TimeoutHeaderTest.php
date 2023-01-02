@@ -10,10 +10,12 @@
 
 namespace Grale\WebDav\Header;
 
+use PHPUnit\Framework\TestCase;
+
 /**
  * @covers Grale\WebDav\Header\TimeoutHeader
  */
-class TimeoutHeaderTest extends \PHPUnit_Framework_TestCase
+class TimeoutHeaderTest extends TestCase
 {
     public function testTimeout()
     {

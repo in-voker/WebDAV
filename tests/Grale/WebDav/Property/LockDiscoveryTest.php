@@ -11,18 +11,19 @@
 namespace Grale\WebDav\Property;
 
 use Grale\WebDav\Lock;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers Grale\WebDav\Property\LockDiscovery
  */
-class LockDiscoveryTest extends \PHPUnit_Framework_TestCase
+class LockDiscoveryTest extends TestCase
 {
     /**
      * @var LockDiscovery
      */
     protected $property;
 
-    public function setUp()
+    public function setUp() : void
     {
         $lockOne = new Lock('shared');
         $lockOne->setToken('opaquelocktoken:e71df4fae-5dec-22d6-fea5-00a0c91e6be4');

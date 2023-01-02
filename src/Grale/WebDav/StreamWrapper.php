@@ -12,8 +12,10 @@ namespace Grale\WebDav;
 
 use Grale\WebDav\Exception\StreamException;
 use Grale\WebDav\Exception\NoSuchResourceException;
-use Guzzle\Http\EntityBody;
-use Guzzle\Http\Url;
+use GuzzleHttp\Psr7\UriResolver;
+use GuzzleHttp\Psr7\Utils;
+use GuzzleHttp\Stream\Stream;
+use GuzzleHttp\Psr7\Uri;
 
 /**
  * Stream wrapper
@@ -50,7 +52,7 @@ class StreamWrapper
     protected $mode;
 
     /**
-     * @var EntityBody Underlying stream resource
+     * @var Underlying stream resource
      */
     protected $stream;
 
@@ -296,7 +298,7 @@ class StreamWrapper
      */
     public function stream_eof()
     {
-        return $this->stream->feof();
+        return $this->stream->eof();
     }
 
     /**
@@ -371,11 +373,7 @@ class StreamWrapper
      */
     public function stream_stat()
     {
-        $stats = fstat($this->stream->getStream());
-
-        if ($this->mode == 'r' && $this->stream->getSize()) {
-            $stats[7] = $stats['size'] = $this->stream->getSize();
-        }
+        $stats = fstat($this->stream);
 
         return $stats;
     }
@@ -581,7 +579,7 @@ class StreamWrapper
             $result   = $resource->getFilename();
 
             // Cache the resource statistics for quick url_stat lookups
-            $url = rtrim((string)Url::factory($this->openedPath)->combine($resource->getHref()), '/');
+			$url = rtrim(((string)UriResolver::resolve($this->openedPath, new Uri($resource->getHref()))), '/');
             self::$statCache[$url] = $resource->getStat();
 
             $this->iterator->next();
@@ -789,7 +787,7 @@ class StreamWrapper
         try {
             $contents = self::$client->get($url);
 
-            $this->stream = EntityBody::fromString($contents);
+            $this->stream = Utils::streamFor($contents);
             $this->stream->seek(0, SEEK_END);
 
         } catch (NoSuchResourceException $exception) {
@@ -808,7 +806,7 @@ class StreamWrapper
      */
     protected function openWriteOnly($url)
     {
-        $this->stream = new EntityBody(fopen('php://temp', 'r+'));
+        $this->stream = Utils::streamFor(fopen('php://temp', 'r+'));
 
         return true;
     }
@@ -816,7 +814,7 @@ class StreamWrapper
     /**
      * @param string $path
      *
-     * @return Url
+     * @return Uri
      * @throws \InvalidArgumentException
      */
     protected function resolveUrl($path)
@@ -825,15 +823,15 @@ class StreamWrapper
 
         if ($baseUrl) {
             list($scheme, $uri) = explode('://', $path, 2);
-            $url = Url::factory($baseUrl)->combine($uri);
+            $url = UriResolver::resolve($baseUrl, $uri);
         } else {
-            $url = Url::factory($path);
+            $url = new Uri($path);
         }
 
         $protocol = $url->getScheme();
 
         if (isset(self::$protocols[$protocol])) {
-            $url->setScheme(self::$protocols[$protocol]);
+			$url = $url->withScheme(self::$protocols[$protocol]);
         }
 
         return $url;

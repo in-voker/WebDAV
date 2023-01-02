@@ -12,18 +12,19 @@ namespace Grale\WebDav;
 
 use Grale\WebDav\Header\TimeoutHeader;
 use Grale\WebDav\Header\DepthHeader;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers Grale\WebDav\Lock
  */
-class LockTest extends \PHPUnit_Framework_TestCase
+class LockTest extends TestCase
 {
     /**
      * @var Lock
      */
     protected $lock;
 
-    public function setUp()
+    public function setUp() : void
     {
         $this->lock = new Lock();
     }

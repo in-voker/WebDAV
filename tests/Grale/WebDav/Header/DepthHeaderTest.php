@@ -10,10 +10,12 @@
 
 namespace Grale\WebDav\Header;
 
+use PHPUnit\Framework\TestCase;
+
 /**
  * @covers Grale\WebDav\Header\DepthHeader
  */
-class DepthHeaderTest extends \PHPUnit_Framework_TestCase
+class DepthHeaderTest extends TestCase
 {
     /**
      * @dataProvider getHeaders
