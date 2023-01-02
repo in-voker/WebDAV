@@ -10,13 +10,15 @@
 namespace Grale\WebDav;
 
 use GuzzleHttp\Client as HttpClient;
-use GuzzleHttp\Message\Response as HttpResponse;
-use GuzzleHttp\Message\RequestInterface as HttpRequest;
+use GuzzleHttp\Psr7\Response as HttpResponse;
+use GuzzleHttp\Psr7\Request as HttpRequest;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\BadResponseException;
 use Grale\WebDav\Exception\NoSuchResourceException;
 use Grale\WebDav\Header\TimeoutHeader;
+use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
+use GuzzleHttp\Psr7\Utils;
 
 /**
  * WebDAV client
@@ -136,8 +138,15 @@ class WebDavClient
     {
         $request = $this->createRequest('GET', $uri);
         $response = $this->doRequest($request);
-        
-        return $response->isSuccessful() ? stream_get_contents($response->getBody()) : null;
+
+		try
+		{
+			return Utils::tryGetContents(\GuzzleHttp\Psr7\StreamWrapper::getResource($response->getBody()));
+		}
+		catch (Exception $e)
+		{
+			return null;
+		}
     }
 
     /**
@@ -215,7 +224,7 @@ class WebDavClient
         $request = $this->createRequest('PUT', $uri, $headers, $body);
         
         if (isset($options['locktoken'])) {
-            $request->setHeader('If', '(<' . $options['locktoken'] . '>)');
+            $request = $request->withHeader('If', '(<' . $options['locktoken'] . '>)');
         }
         
         $response = $this->doRequest($request);
@@ -328,7 +337,7 @@ class WebDavClient
                 $token = "(<{$token}>)";
             }
             
-            $request->setHeader('If', implode(' ', $tokens));
+            $request = $request->withHeader('If', implode(' ', $tokens));
         }
         
         $response = $this->doRequest($request);
@@ -459,7 +468,7 @@ class WebDavClient
      * @throws \RuntimeException When the server returns an unexpected response. Actually, 207 (Multi-Status) responses are not supposed
      *         to be received from server, as far as multi-resource lock requests are not supported.
      */
-    public function createLock($uri, array $options = null)
+    public function createLock(string $uri, array $options = null)
     {
         $scope = isset($options['scope']) ? $options['scope'] : Lock::EXCLUSIVE;
         
@@ -503,7 +512,7 @@ class WebDavClient
             throw new \RuntimeException('Unexpected server response');
         }
         
-        return $response->isSuccessful() ? Lock::parse($this, $response->getBody()) : null;
+        return Lock::parse($this, $response->getBody());
     }
 
     /**
@@ -537,7 +546,7 @@ class WebDavClient
         $request = $this->createRequest('LOCK', $uri, $headers);
         $response = $this->doRequest($request);
         
-        return $response->isSuccessful() ? Lock::parse($this, $response->getBody()) : null;
+        return Lock::parse($this, $response->getBody());
     }
 
     /**
@@ -581,7 +590,7 @@ class WebDavClient
         $response = $this->doRequest($request);
         
         if ($response->hasHeader('Allow')) {
-            foreach (explode(',', $response->getHeader('Allow')) as $method) {
+            foreach (explode(',', $response->getHeaderLine('Allow')) as $method) {
                 $methods[] = trim($method);
             }
         }
@@ -604,7 +613,7 @@ class WebDavClient
         $response = $this->doRequest($request);
         
         if ($response->hasHeader('Dav')) {
-            foreach (explode(',', $response->getHeader('Dav')) as $class) {
+            foreach (explode(',', $response->getHeaderLine('Dav')) as $class) {
                 $classes[] = trim($class);
             }
         }
@@ -625,7 +634,7 @@ class WebDavClient
         if (substr($uri, 0, 4) == 'http') {
             $url = $uri;
         } else {
-			$url = UriResolver::resolve($this->baseUrl,$uri);
+			$url = UriResolver::resolve($this->baseUrl,new Uri($uri??''));
         }
         
         return (string) $url;
@@ -672,6 +681,8 @@ class WebDavClient
 
     /**
      * Create a new request configured for the client.
+	 *
+	 * This isn't really the way Guzzle wants it done, client->request() creates & starts the request.
      *
      * @param string $method
      *            HTTP method
@@ -688,9 +699,10 @@ class WebDavClient
     {
         $url = $this->resolveUrl($uri);
         
-        $request = $this->getHttpClient()->createRequest($method, $url, $headers, $body, $this->requestOptions);
-        $request->setHeader('User-Agent', $this->userAgent);
-        
+        $request = new HttpRequest($method, $url, array_merge(
+			['User-Agent' => $this->userAgent],
+			$headers??[],
+			$this->requestOptions??[]), $body);
         return $request;
     }
 
@@ -723,11 +735,11 @@ class WebDavClient
     /**
      * Get the last sent request.
      *
-     * @return string Returns the content of the last sent request
+     * @return Request Returns the content of the last sent request
      */
     public function getLastRequest()
     {
-        return $this->lastRequest ? (string) $this->lastRequest : null;
+        return $this->lastRequest;
     }
 
     /**
@@ -773,9 +785,9 @@ class WebDavClient
     /**
      * Get the base URL of the client.
      *
-     * @return string The base URL
+     * @return Uri The base URL
      */
-    public function getBaseUrl()
+    public function getBaseUrl() : Uri
     {
         return $this->baseUrl;
     }
@@ -787,9 +799,9 @@ class WebDavClient
      *            The base URL
      * @return self Provides a fluent interface
      */
-    public function setBaseUrl($url)
+    public function setBaseUrl(string|Uri $url)
     {
-        $this->baseUrl = $url;
+        $this->baseUrl = is_string($url) ? new Uri($url) : $url;
         return $this;
     }
 
@@ -897,13 +909,9 @@ class WebDavClient
     public function setAuth($user, $password = '', $scheme = 'Basic')
     {
         if ($user === null or $user === false) {
-            unset($this->requestOptions['auth']);
-        } else {
-            $this->requestOptions['auth'] = array(
-                $user,
-                $password,
-                $scheme
-            );
+            unset($this->requestOptions['Authorization']);
+        } else if ($scheme == 'Basic') {
+            $this->requestOptions['Authorization'] = $scheme . ' ' . base64_encode($user . ':'.$password);
         }
         
         return $this;
@@ -942,7 +950,7 @@ class WebDavClient
      *
      * @return HttpClient Returns the HTTP client to use
      */
-    protected function getHttpClient()
+    public function getHttpClient()
     {
         // @codeCoverageIgnoreStart
         if ($this->httpClient === null) {

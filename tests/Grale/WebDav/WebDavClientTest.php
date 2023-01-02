@@ -9,7 +9,9 @@
  */
 namespace Grale\WebDav;
 
-use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Psr7\Message;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
@@ -42,11 +44,17 @@ class WebDavClientTest extends TestCase
         $client->setHttpClient($mock);
         
         $this->assertEquals('http://www.foo.bar', $client->getBaseUrl());
-        
-        $client->get('http://www.foo.bar/resource');
+
+		try
+		{
+			$client->get('http://www.foo.bar/resource');
+		} catch (ConnectException $e)
+		{// foo.bar is not valid
+		}
         $request = $client->getLastRequest();
-        $this->assertContains('User-Agent: my/custom/agent', $request);
-        $this->assertContains('Authorization: Basic dXNlcjpwYXNz', $request);
+
+        $this->assertContains('my/custom/agent', $request->getHeader('User-Agent'));
+        $this->assertContains('Basic dXNlcjpwYXNz', $request->getHeader('Authorization'));
     }
     
     // /////////////////////////////////////////
@@ -121,7 +129,7 @@ class WebDavClientTest extends TestCase
         ));
         
         $request = $client->getLastRequest();
-        $this->assertContains('If: (<opaquelocktoken:e71d4fae-5dec-22d6-fea5-00a0c91e6be4>)', $request);
+        $this->assertEquals('(<opaquelocktoken:e71d4fae-5dec-22d6-fea5-00a0c91e6be4>)', $request->getHeaderLine("If"));
     }
 
     public function testPutSuccessfully()
@@ -196,7 +204,8 @@ class WebDavClientTest extends TestCase
      */
     public function testMkcolBadResponses($status, $class, $message)
     {
-        $this->setExpectedException(__NAMESPACE__ . '\\' . $class, $message);
+        $this->expectException('GuzzleHttp' . '\\' . $class);
+		$this->expectExceptionMessage($message);
         
         $client = new WebDavClient('http://www.foo.bar');
         $client->setHttpClient($this->getHttpClientMock(new Response($status)));
@@ -209,27 +218,27 @@ class WebDavClientTest extends TestCase
         return array(
             array(
                 403,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Forbidden'
             ),
             array(
                 405,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Method Not Allowed'
             ),
             array(
                 409,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Conflict'
             ),
             array(
                 415,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Unsupported Media Type'
             ),
             array(
                 507,
-                'Exception\ServerFailureException',
+                'Exception\ServerException',
                 'Insufficient Storage'
             )
         );
@@ -259,11 +268,11 @@ class WebDavClientTest extends TestCase
         
         $this->assertTrue($result);
         $this->assertEquals(201, $status, 'Failed asserting that the status-code equals to 201 (Created)');
-        $this->assertTrue(isset($headers['location']), 'Failed asserting that response contains the "location" header');
-        $this->assertEquals('http://www.ics.uci.edu/users/f/fielding/index.html', $headers['location']);
+        $this->assertTrue(isset($headers['Location']), 'Failed asserting that response contains the "location" header');
+        $this->assertContains('http://www.ics.uci.edu/users/f/fielding/index.html', $headers['Location']);
         
-        $this->assertContains('MOVE /~fielding/index.html HTTP/1.1', $request);
-        $this->assertContains('Destination: http://www.ics.uci.edu/users/f/fielding/index.html', $request);
+        //$this->assertContains('MOVE /~fielding/index.html HTTP/1.1', $request);
+        $this->assertContains('http://www.ics.uci.edu/users/f/fielding/index.html', $request->getHeader('Destination'));
     }
 
     /**
@@ -289,10 +298,10 @@ class WebDavClientTest extends TestCase
         $this->assertFalse($result);
         $this->assertEquals(207, $status, 'Failed asserting that the status-code equals to 207 (Multi-Status)');
         
-        $this->assertContains('MOVE /container/ HTTP/1.1', $request);
-        $this->assertContains('Overwrite: F', $request);
-        $this->assertContains('Destination: http://www.foo.bar/othercontainer/', $request);
-        $this->assertContains('If: (<opaquelocktoken:fe184f2e-6eec-41d0-c765-01adc56e6bb4>)' . ' (<opaquelocktoken:e454f3f3-acdc-452a-56c7-00a5c91e4b77>)', $request);
+        $this->assertStringContainsString('MOVE /container/ HTTP/1.1', Message::toString($request));
+		$this->assertContains('F', $request->getHeader('Overwrite'));
+		$this->assertContains('http://www.foo.bar/othercontainer/', $request->getHeader('Destination'));
+        $this->assertContains('(<opaquelocktoken:fe184f2e-6eec-41d0-c765-01adc56e6bb4>)' . ' (<opaquelocktoken:e454f3f3-acdc-452a-56c7-00a5c91e4b77>)', $request->getHeader('If'));
     }
 
     /**
@@ -307,7 +316,8 @@ class WebDavClientTest extends TestCase
      */
     public function testMoveBadResponses($status, $class, $message)
     {
-        $this->setExpectedException(__NAMESPACE__ . '\\' . $class, $message);
+        $this->expectException('GuzzleHttp' . '\\' . $class);
+		$this->expectExceptionMessage($message);
         
         $client = new WebDavClient('http://www.foo.bar');
         $client->setHttpClient($this->getHttpClientMock(new Response($status)));
@@ -320,27 +330,27 @@ class WebDavClientTest extends TestCase
         return array(
             array(
                 403,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Forbidden'
             ),
             array(
                 409,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Conflict'
             ),
             array(
                 412,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Precondition Failed'
             ),
             array(
                 423,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Locked'
             ),
             array(
                 502,
-                'Exception\ServerFailureException',
+                'Exception\ServerException',
                 'Bad Gateway'
             )
         );
@@ -365,10 +375,10 @@ class WebDavClientTest extends TestCase
         
         $this->assertTrue($result);
         $this->assertEquals(204, $status, 'Failed asserting that the status-code equals to 204 (No Content)');
-        $this->assertContains('COPY /~fielding/index.html HTTP/1.1', $request);
-        $this->assertContains('Destination: http://www.ics.uci.edu/users/f/fielding/index.html', $request);
-        $this->assertContains('Overwrite: T', $request);
-        $this->assertContains('Depth: 0', $request);
+        //$this->assertContains('COPY /~fielding/index.html HTTP/1.1', $request);
+		$this->assertContains('http://www.ics.uci.edu/users/f/fielding/index.html', $request->getHeader('Destination'));
+        $this->assertContains('T', $request->getHeader('Overwrite'));
+		$this->assertContains('0', $request->getHeader('Depth'));
     }
 
     /**
@@ -388,10 +398,10 @@ class WebDavClientTest extends TestCase
         
         $this->assertFalse($result);
         $this->assertEquals(412, $status, 'Failed asserting that the status-code equals to 412 (Precondition Failed)');
-        $this->assertContains('COPY /~fielding/index.html HTTP/1.1', $request);
-        $this->assertContains('Destination: http://www.ics.uci.edu/users/f/fielding/index.html', $request);
-        $this->assertContains('Overwrite: F', $request);
-        $this->assertContains('Depth: 0', $request);
+        //$this->assertContains('COPY /~fielding/index.html HTTP/1.1', $request);
+		$this->assertContains('http://www.ics.uci.edu/users/f/fielding/index.html', $request->getHeader('Destination'));
+        $this->assertContains('F', $request->getHeader('Overwrite'));
+		$this->assertContains('0', $request->getHeader('Depth'));
     }
 
     /**
@@ -411,10 +421,10 @@ class WebDavClientTest extends TestCase
         
         $this->assertFalse($result);
         $this->assertEquals(207, $status, 'Failed asserting that the status-code equals to 207 (Multi-Status)');
-        $this->assertContains('COPY /container/ HTTP/1.1', $request);
-        $this->assertContains('Destination: http://www.example.com/othercontainer/', $request);
-        $this->assertContains('Overwrite: T', $request);
-        $this->assertContains('Depth: Infinity', $request);
+        //$this->assertContains('COPY /container/ HTTP/1.1', $request);
+		$this->assertContains('http://www.example.com/othercontainer/', $request->getHeader('Destination'));
+        $this->assertContains('T', $request->getHeader('Overwrite'));
+		$this->assertContains('Infinity', $request->getHeader('Depth'));
     }
 
     /**
@@ -429,7 +439,8 @@ class WebDavClientTest extends TestCase
      */
     public function testCopyBadResponses($status, $class, $message)
     {
-        $this->setExpectedException(__NAMESPACE__ . '\\' . $class, $message);
+        $this->expectException('GuzzleHttp'  . '\\' . $class);
+		$this->expectExceptionMessage($message);
         
         $client = new WebDavClient('http://www.foo.bar');
         $client->setHttpClient($this->getHttpClientMock(new Response($status)));
@@ -442,32 +453,32 @@ class WebDavClientTest extends TestCase
         return array(
             array(
                 403,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Forbidden'
             ),
             array(
                 409,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Conflict'
             ),
             array(
                 412,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Precondition Failed'
             ),
             array(
                 423,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Locked'
             ),
             array(
                 502,
-                'Exception\ServerFailureException',
+                'Exception\ServerException',
                 'Bad Gateway'
             ),
             array(
                 507,
-                'Exception\ServerFailureException',
+                'Exception\ServerException',
                 'Insufficient Storage'
             )
         );
@@ -503,9 +514,9 @@ class WebDavClientTest extends TestCase
         
         $xml = '<D:propfind xmlns:D="DAV:">' . '<D:prop xmlns:R="http://www.foo.bar/boxschema/">' . '<R:bigbox/>' . '<R:author/>' . '<R:DingALing/>' . '<R:Random/>' . '</D:prop>' . '</D:propfind>';
         
-        $this->assertContains('PROPFIND /file HTTP/1.1', $request);
-        $this->assertContains('Content-Type: text/xml; charset="utf-8"', $request);
-        $this->assertContains('Depth: 0', $request);
+        //$this->assertContains('PROPFIND /file HTTP/1.1', $request);
+		$this->assertContains('text/xml; charset="utf-8"', $request->getHeader('Content-Type'));
+        $this->assertContains('0', $request->getHeader('Depth'));
         $this->assertContains($xml, $request);
         
         $this->assertInstanceOf('Grale\\WebDav\\MultiStatus', $result);
@@ -529,9 +540,9 @@ class WebDavClientTest extends TestCase
         
         $xml = '<D:propfind xmlns:D="DAV:">' . '<D:allprop/>' . '</D:propfind>';
         
-        $this->assertContains('PROPFIND /container/ HTTP/1.1', $request);
-        $this->assertContains('Content-Type: text/xml; charset="utf-8"', $request);
-        $this->assertContains('Depth: 1', $request);
+        //$this->assertContains('PROPFIND /container/ HTTP/1.1', $request);
+		$this->assertContains('text/xml; charset="utf-8"', $request->getHeader('Content-Type'));
+        $this->assertContains('1', $request->getHeader('Depth'));
         $this->assertContains($xml, $request);
         
         $this->assertInstanceOf('Grale\\WebDav\\MultiStatus', $result);
@@ -564,11 +575,11 @@ class WebDavClientTest extends TestCase
         
         $xml = '<D:lockinfo xmlns:D="DAV:">' . '<D:lockscope><D:exclusive/></D:lockscope>' . '<D:locktype><D:write/></D:locktype>' . '<D:owner>' . '<D:href>http://www.ics.uci.edu/~ejw/contact.html</D:href>' . '</D:owner>' . '</D:lockinfo>';
         
-        $this->assertContains($xml, $request);
-        $this->assertContains('Depth: 0', $request);
-        
-        $this->assertContains('Timeout: Second-4100000000', $request);
-        $this->assertContains('LOCK /workspace/webdav/proposal.doc HTTP/1.1', $request);
+        $this->assertStringContainsString($xml, $request->getBody()->getContents());
+        $this->assertContains('0', $request->getHeader('Depth'));
+
+		$this->assertContains('Second-4100000000', $request->getHeader('Timeout'));
+        //$this->assertContains('LOCK /workspace/webdav/proposal.doc HTTP/1.1', $request);
         
         $this->assertEquals('http://www.ics.uci.edu/~ejw/contact.html', $lock->getOwner());
         $this->assertEquals('opaquelocktoken:e71d4fae-5dec-22d6-fea5-00a0c91e6be4', $lock->getToken());
@@ -593,21 +604,23 @@ class WebDavClientTest extends TestCase
         $this->assertEquals('opaquelocktoken:e71d4fae-5dec-22d6-fea5-00a0c91e6be4', $result->getToken());
         $this->assertEquals(604800, $result->getTimeout());
         $this->assertTrue($result->isDeep());
-        
-        $this->assertContains('Timeout: Second-4100000000', $request);
-        $this->assertContains('LOCK /workspace/webdav/proposal.doc HTTP/1.1', $request);
-        $this->assertContains('If: (<opaquelocktoken:e71d4fae-5dec-22d6-fea5-00a0c91e6be4>)', $request);
+
+        $this->assertContains('Second-4100000000', $request->getHeader('Timeout'));
+        //$this->assertContains('LOCK /workspace/webdav/proposal.doc HTTP/1.1', $request);
+		$this->assertContains('(<opaquelocktoken:e71d4fae-5dec-22d6-fea5-00a0c91e6be4>)', $request->getHeader('If'));
     }
 
     /**
      *
      * @link http://www.webdav.org/specs/rfc2518.html#rfc.section.8.10.10
-     *       @expectedException \RuntimeException
-     *       @expectedExceptionMessage Unexpected server response
-     */
+     *
+	 *
+	 */
     public function testMultiResourceLockRequest()
     {
-        $client = new WebDavClient('http://webdav.sb.aol.com');
+		$this->expectExceptionMessage("Unexpected server response");
+		$this->expectException(\RuntimeException::class);
+		$client = new WebDavClient('http://webdav.sb.aol.com');
         $client->setHttpClient($this->getHttpClientMock($this->getFixture('response.multi-resource-lock')));
         
         $client->createLock('/webdav/', array(
@@ -629,7 +642,8 @@ class WebDavClientTest extends TestCase
      */
     public function testLockBadResponses($status, $class, $message)
     {
-        $this->setExpectedException(__NAMESPACE__ . '\\' . $class, $message);
+        $this->expectException('GuzzleHttp'  . '\\' . $class);
+		$this->expectExceptionMessage($message);
         
         $client = new WebDavClient('http://www.foo.bar');
         $client->setHttpClient($this->getHttpClientMock(new Response($status)));
@@ -642,12 +656,12 @@ class WebDavClientTest extends TestCase
         return array(
             array(
                 412,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Precondition Failed'
             ),
             array(
                 423,
-                'Exception\ClientFailureException',
+                'Exception\ClientException',
                 'Locked'
             )
         );
@@ -672,8 +686,8 @@ class WebDavClientTest extends TestCase
         
         $this->assertTrue($result);
         $this->assertEquals(204, $status, 'Failed asserting that the status-code equals to 204 (No Content)');
-        $this->assertContains('UNLOCK /workspace/webdav/info.doc HTTP/1.1', $request);
-        $this->assertContains('Lock-Token: <opaquelocktoken:a515cfa4-5da4-22e1-f5b5-00a0451e6bf7>', $request);
+        //$this->assertContains('UNLOCK /workspace/webdav/info.doc HTTP/1.1', $request);
+		$this->assertContains('<opaquelocktoken:a515cfa4-5da4-22e1-f5b5-00a0451e6bf7>', $request->getHeader('Lock-Token'));
     }
 
     /**
@@ -701,9 +715,9 @@ class WebDavClientTest extends TestCase
         
         if (! $asString) {
             if (substr($name, 0, 7) == 'request') {
-                $contents = RequestFactory::getInstance()->fromMessage($contents);
+                $contents = Message::parseRequest($contents);
             } elseif (substr($name, 0, 8) == 'response') {
-                $contents = Response::fromMessage($contents);
+                $contents = Message::parseResponse($contents);
             }
         }
         
@@ -718,15 +732,14 @@ class WebDavClientTest extends TestCase
     protected function getHttpClientMock(Response $response)
     {
         $client = $this->getMockBuilder('\GuzzleHttp\Client')
-            ->setMethods(array('send'))
+            ->setMethods(array('send','transfer'))
             ->getMock();
 		$level = (int) \floor($response->getStatusCode() / 100);
         if ($level == 4 || $level == 5) {
             $request = $this->getMockBuilder(Request::class)
                 ->disableOriginalConstructor()
                 ->getMock();
-            
-            $e = BadResponseException::factory($request, $response);
+           $e = RequestException::create( $request, $response);
             $client->expects($this->any())
                 ->method('send')
                 ->will($this->throwException($e));

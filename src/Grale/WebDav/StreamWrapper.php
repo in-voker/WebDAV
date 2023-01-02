@@ -373,7 +373,7 @@ class StreamWrapper
      */
     public function stream_stat()
     {
-        $stats = fstat($this->stream);
+        $stats = fstat(\GuzzleHttp\Psr7\StreamWrapper::getResource($this->stream));
 
         return $stats;
     }
@@ -823,7 +823,7 @@ class StreamWrapper
 
         if ($baseUrl) {
             list($scheme, $uri) = explode('://', $path, 2);
-            $url = UriResolver::resolve($baseUrl, $uri);
+            $url = UriResolver::resolve($baseUrl, Utils::uriFor($uri));
         } else {
             $url = new Uri($path);
         }

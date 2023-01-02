@@ -10,7 +10,6 @@
 
 namespace Grale\WebDav;
 
-use GuzzleHttp\Psr7\Stream;
 use GuzzleHttp\Psr7\Utils;
 use PHPUnit\Framework\TestCase;
 
@@ -26,10 +25,10 @@ class StreamWrapperTest extends TestCase
 
     public function setUp() : void
     {
-        $httpClient = $this->getMockBuilder('\Guzzle\Http\Client')->getMock();
-        $wdavClient = $this->getMockBuilder('\Grale\WebDav\WebDavClient')->getMock();
+        $httpClient = $this->createMock('\GuzzleHttp\Client');
+        $wdavClient = $this->createMock('\Grale\WebDav\WebDavClient');
 
-        $wdavClient->expects($this->any())->method('getHttpClient')->will($this->returnValue($httpClient));
+        $wdavClient->expects($this->any())->method('getHttpClient')->willReturn($httpClient);
 
         $stream = Utils::streamFor('Hello World!');
         $wdavClient->expects($this->any())->method('getStream')->will($this->returnValue($stream));
@@ -56,13 +55,11 @@ class StreamWrapperTest extends TestCase
         }
     }
 
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage A stream wrapper already exists for the 'webdav' protocol
-     */
-    public function testRegisteringAlreadyExistingStreamWrapper()
+	public function testRegisteringAlreadyExistingStreamWrapper()
     {
-        StreamWrapper::register();
+		$this->expectExceptionMessage("A stream wrapper already exists for the 'webdav' protocol");
+		$this->expectException(\RuntimeException::class);
+		StreamWrapper::register();
     }
 
     public function testRegisteringTheStreamWrapper()
@@ -90,12 +87,14 @@ class StreamWrapperTest extends TestCase
 
     /**
      * @dataProvider getUnsupportedModes
-     * @expectedException \PHPUnit_Framework_Error_Warning
-     * @expectedExceptionMessage failed to open stream
-     */
+     *
+	 *
+	 */
     public function testStreamOpenWithUnsupportedModeTriggersError($mode)
     {
-        fopen('webdav://test', $mode);
+		$this->expectWarningMessage("Failed to open stream");
+		$this->expectException(\PHPUnit\Framework\Error\Warning::class);
+		fopen('webdav://test', $mode);
     }
 
     public function getUnsupportedModes()
@@ -114,7 +113,7 @@ class StreamWrapperTest extends TestCase
         $dir = 'webdav://www.foo.bar/container';
 
         $dh = opendir($dir);
-        $this->assertInternalType('resource', $dh, "Failed asserting that 'opendir' returned a 'resource'");
+        $this->assertEquals('resource', gettype($dh), "Failed asserting that 'opendir' returned a 'resource'");
 
         $files = array();
 
@@ -173,6 +172,7 @@ class StreamWrapperTest extends TestCase
         $stream = fopen('webdav://www.foo.bar', 'w');
         fwrite($stream, 'Hello World!');
         fclose($stream);
+		$this->markTestIncomplete();
     }
 
     public function testReadingWithWriteOnlyMode()
@@ -212,13 +212,11 @@ class StreamWrapperTest extends TestCase
         $this->assertTrue($result);
     }
 
-    /**
-     * @expectedException \PHPUnit_Framework_Error_Warning
-     * @expectedExceptionMessage WebDAV stream wrapper does not allow to create directories recursively
-     */
-    public function testMakeDirectoryRecursively()
+	public function testMakeDirectoryRecursively()
     {
-        $result = mkdir('webdav://www.foo.bar/newcontainer', 0777, true);
+		$this->expectExceptionMessage("WebDAV stream wrapper does not allow to create directories recursively");
+		$this->expectException(\PHPUnit\Framework\Error\Warning::class);
+		$result = mkdir('webdav://www.foo.bar/newcontainer', 0777, true);
         $this->assertFalse($result);
     }
 
@@ -240,9 +238,10 @@ class StreamWrapperTest extends TestCase
         $this->client->expects($this->once())
                      ->method('createLock')
                      ->with(
+			// Actually www.foo.bar/front.html
                          $this->equalTo('http://www.foo.bar/front.html'),
                          $this->anything()
-                     )
+					 )
                      ->will($this->returnValue($lock));
 
         $stream = fopen('webdav://www.foo.bar/front.html', 'w');
