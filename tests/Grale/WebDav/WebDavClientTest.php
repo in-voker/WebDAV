@@ -15,9 +15,10 @@ use GuzzleHttp\Psr7\Message;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ResponseInterface;
 
 /**
- * @covers Grale\WebDav\Client
+ * @covers \Grale\WebDav\Client
  */
 class WebDavClientTest extends TestCase
 {
@@ -375,7 +376,7 @@ class WebDavClientTest extends TestCase
         
         $this->assertTrue($result);
         $this->assertEquals(204, $status, 'Failed asserting that the status-code equals to 204 (No Content)');
-        //$this->assertContains('COPY /~fielding/index.html HTTP/1.1', $request);
+        $this->assertStringContainsString('COPY /~fielding/index.html HTTP/1.1', Message::toString($request));
 		$this->assertContains('http://www.ics.uci.edu/users/f/fielding/index.html', $request->getHeader('Destination'));
         $this->assertContains('T', $request->getHeader('Overwrite'));
 		$this->assertContains('0', $request->getHeader('Depth'));
@@ -398,7 +399,7 @@ class WebDavClientTest extends TestCase
         
         $this->assertFalse($result);
         $this->assertEquals(412, $status, 'Failed asserting that the status-code equals to 412 (Precondition Failed)');
-        //$this->assertContains('COPY /~fielding/index.html HTTP/1.1', $request);
+        $this->assertStringContainsString('COPY /~fielding/index.html HTTP/1.1', Message::toString($request));
 		$this->assertContains('http://www.ics.uci.edu/users/f/fielding/index.html', $request->getHeader('Destination'));
         $this->assertContains('F', $request->getHeader('Overwrite'));
 		$this->assertContains('0', $request->getHeader('Depth'));
@@ -421,7 +422,7 @@ class WebDavClientTest extends TestCase
         
         $this->assertFalse($result);
         $this->assertEquals(207, $status, 'Failed asserting that the status-code equals to 207 (Multi-Status)');
-        //$this->assertContains('COPY /container/ HTTP/1.1', $request);
+        $this->assertStringContainsString('COPY /container/ HTTP/1.1', Message::toString($request));
 		$this->assertContains('http://www.example.com/othercontainer/', $request->getHeader('Destination'));
         $this->assertContains('T', $request->getHeader('Overwrite'));
 		$this->assertContains('Infinity', $request->getHeader('Depth'));
@@ -514,10 +515,10 @@ class WebDavClientTest extends TestCase
         
         $xml = '<D:propfind xmlns:D="DAV:">' . '<D:prop xmlns:R="http://www.foo.bar/boxschema/">' . '<R:bigbox/>' . '<R:author/>' . '<R:DingALing/>' . '<R:Random/>' . '</D:prop>' . '</D:propfind>';
         
-        //$this->assertContains('PROPFIND /file HTTP/1.1', $request);
+        $this->assertStringContainsString('PROPFIND /file HTTP/1.1', Message::toString($request));
 		$this->assertContains('text/xml; charset="utf-8"', $request->getHeader('Content-Type'));
         $this->assertContains('0', $request->getHeader('Depth'));
-        $this->assertContains($xml, $request);
+        $this->assertStringContainsString($xml, Message::toString($request));
         
         $this->assertInstanceOf('Grale\\WebDav\\MultiStatus', $result);
         $this->assertEquals(207, $status, 'Failed asserting that the status-code equals to 207 (Multi-Status)');
@@ -540,10 +541,10 @@ class WebDavClientTest extends TestCase
         
         $xml = '<D:propfind xmlns:D="DAV:">' . '<D:allprop/>' . '</D:propfind>';
         
-        //$this->assertContains('PROPFIND /container/ HTTP/1.1', $request);
+        $this->assertStringContainsString('PROPFIND /container/ HTTP/1.1', Message::toString($request));
 		$this->assertContains('text/xml; charset="utf-8"', $request->getHeader('Content-Type'));
         $this->assertContains('1', $request->getHeader('Depth'));
-        $this->assertContains($xml, $request);
+        $this->assertStringContainsString($xml, Message::toString($request));
         
         $this->assertInstanceOf('Grale\\WebDav\\MultiStatus', $result);
         $this->assertEquals(207, $status, 'Failed asserting that the status-code equals to 207 (Multi-Status)');
@@ -579,7 +580,7 @@ class WebDavClientTest extends TestCase
         $this->assertContains('0', $request->getHeader('Depth'));
 
 		$this->assertContains('Second-4100000000', $request->getHeader('Timeout'));
-        //$this->assertContains('LOCK /workspace/webdav/proposal.doc HTTP/1.1', $request);
+        $this->assertStringContainsString('LOCK /workspace/webdav/proposal.doc HTTP/1.1', Message::toString($request));
         
         $this->assertEquals('http://www.ics.uci.edu/~ejw/contact.html', $lock->getOwner());
         $this->assertEquals('opaquelocktoken:e71d4fae-5dec-22d6-fea5-00a0c91e6be4', $lock->getToken());
@@ -606,7 +607,7 @@ class WebDavClientTest extends TestCase
         $this->assertTrue($result->isDeep());
 
         $this->assertContains('Second-4100000000', $request->getHeader('Timeout'));
-        //$this->assertContains('LOCK /workspace/webdav/proposal.doc HTTP/1.1', $request);
+        $this->assertStringContainsString('LOCK /workspace/webdav/proposal.doc HTTP/1.1', Message::toString($request));
 		$this->assertContains('(<opaquelocktoken:e71d4fae-5dec-22d6-fea5-00a0c91e6be4>)', $request->getHeader('If'));
     }
 
@@ -686,7 +687,7 @@ class WebDavClientTest extends TestCase
         
         $this->assertTrue($result);
         $this->assertEquals(204, $status, 'Failed asserting that the status-code equals to 204 (No Content)');
-        //$this->assertContains('UNLOCK /workspace/webdav/info.doc HTTP/1.1', $request);
+        $this->assertStringContainsString('UNLOCK /workspace/webdav/info.doc HTTP/1.1', Message::toString($request));
 		$this->assertContains('<opaquelocktoken:a515cfa4-5da4-22e1-f5b5-00a0451e6bf7>', $request->getHeader('Lock-Token'));
     }
 
@@ -726,7 +727,7 @@ class WebDavClientTest extends TestCase
 
     /**
      *
-     * @param \Guzzle\Http\Message\Response $response            
+     * @param Response $response
      * @return \GuzzleHttp\Client
      */
     protected function getHttpClientMock(Response $response)

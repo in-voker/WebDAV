@@ -12,9 +12,9 @@ namespace Grale\WebDav;
 
 use Grale\WebDav\Exception\StreamException;
 use Grale\WebDav\Exception\NoSuchResourceException;
+use GuzzleHttp\Psr7\Stream;
 use GuzzleHttp\Psr7\UriResolver;
 use GuzzleHttp\Psr7\Utils;
-use GuzzleHttp\Stream\Stream;
 use GuzzleHttp\Psr7\Uri;
 
 /**
@@ -52,7 +52,7 @@ class StreamWrapper
     protected $mode;
 
     /**
-     * @var Underlying stream resource
+     * @var Stream Underlying stream resource
      */
     protected $stream;
 
@@ -309,7 +309,7 @@ class StreamWrapper
      */
     public function stream_tell()
     {
-        return $this->stream->ftell();
+        return $this->stream->tell();
     }
 
     /**
@@ -323,7 +323,9 @@ class StreamWrapper
      */
     public function stream_seek($offset, $whence = SEEK_SET)
     {
-        return $this->stream->seek($offset, $whence);
+        $this->stream->seek($offset, $whence);
+
+		return true;
     }
 
     /**
@@ -362,7 +364,7 @@ class StreamWrapper
      */
     public function stream_cast($cast)
     {
-        return $this->stream->getStream();
+        return \GuzzleHttp\Psr7\StreamWrapper::getResource($this->stream);
     }
 
     /**
@@ -579,7 +581,7 @@ class StreamWrapper
             $result   = $resource->getFilename();
 
             // Cache the resource statistics for quick url_stat lookups
-			$url = rtrim(((string)UriResolver::resolve($this->openedPath, new Uri($resource->getHref()))), '/');
+			$url = rtrim(((string)UriResolver::resolve(Utils::uriFor($this->openedPath), new Uri($resource->getHref()))), '/');
             self::$statCache[$url] = $resource->getStat();
 
             $this->iterator->next();
@@ -766,7 +768,7 @@ class StreamWrapper
     /**
      * Initialize the stream wrapper for a read-only stream.
      *
-     * @param Url $url URL of the resource to be opened
+     * @param Uri $url URL of the resource to be opened
      * @return bool Returns true on success or false on failure
      */
     protected function openReadOnly($url)
@@ -779,7 +781,7 @@ class StreamWrapper
     /**
      * Initialize the stream wrapper for an append stream.
      *
-     * @param Url $url URL of the resource to be opened
+     * @param Uri $url URL of the resource to be opened
      * @return bool Returns true on success or false on failure
      */
     protected function openAppendMode($url)
@@ -801,7 +803,7 @@ class StreamWrapper
     /**
      * Initialize the stream wrapper for a write-only stream.
      *
-     * @param Url $url URL of the resource to be opened
+     * @param Uri $url URL of the resource to be opened
      * @return bool Returns true on success or false on failure
      */
     protected function openWriteOnly($url)
@@ -823,7 +825,7 @@ class StreamWrapper
 
         if ($baseUrl) {
             list($scheme, $uri) = explode('://', $path, 2);
-            $url = UriResolver::resolve($baseUrl, Utils::uriFor($uri));
+            $url = UriResolver::resolve($baseUrl, Utils::uriFor($path));
         } else {
             $url = new Uri($path);
         }

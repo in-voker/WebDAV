@@ -10,15 +10,18 @@
 namespace Grale\WebDav;
 
 use GuzzleHttp\Client as HttpClient;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response as HttpResponse;
 use GuzzleHttp\Psr7\Request as HttpRequest;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\BadResponseException;
 use Grale\WebDav\Exception\NoSuchResourceException;
 use Grale\WebDav\Header\TimeoutHeader;
+use GuzzleHttp\Psr7\Stream;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
 use GuzzleHttp\Psr7\Utils;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * WebDAV client
@@ -56,7 +59,7 @@ class WebDavClient
 
     /**
      *
-     * @var string The base URL of the client
+     * @var Uri The base URL of the client
      */
     protected $baseUrl;
 
@@ -143,7 +146,7 @@ class WebDavClient
 		{
 			return Utils::tryGetContents(\GuzzleHttp\Psr7\StreamWrapper::getResource($response->getBody()));
 		}
-		catch (Exception $e)
+		catch (\Exception $e)
 		{
 			return null;
 		}
@@ -155,7 +158,7 @@ class WebDavClient
      * @param string $uri
      *            Resource URI
      *            
-     * @return Stream Returns the stream resource on success or false on failure
+     * @return false|Stream Returns the stream resource on success or false on failure
      * @throws \RuntimeException If the stream cannot be opened or an error occurs
      */
     public function getStream($uri)
@@ -168,7 +171,7 @@ class WebDavClient
         $this->lastRequest = $request;
         $this->lastResponse = $response;
         
-        if (! $response->isSuccessful()) {
+        if (! $response->getStatusCode() == 200) {
             $stream = false;
         }
         
@@ -256,7 +259,7 @@ class WebDavClient
         $request = $this->createRequest('DELETE', $uri, $headers);
         
         if (isset($options['locktoken'])) {
-            $request->setHeader('If', '(<' . $options['locktoken'] . '>)');
+            $request = $request->withHeader('If', '(<' . $options['locktoken'] . '>)');
         }
         
         $response = $this->doRequest($request);
@@ -288,7 +291,7 @@ class WebDavClient
         $request = $this->createRequest('MKCOL', $uri, $headers);
         
         if (isset($options['locktoken'])) {
-            $request->setHeader('If', '(<' . $options['locktoken'] . '>)');
+            $request = $request->withHeader('If', '(<' . $options['locktoken'] . '>)');
         }
         
         $response = $this->doRequest($request);
@@ -435,7 +438,7 @@ class WebDavClient
         $body = $dom->saveXML();
         
         $request = $this->createRequest('PROPFIND', $uri, array(
-            'Content-Type' => 'Content-Type: text/xml; charset="utf-8"',
+            'Content-Type' => 'text/xml; charset="utf-8"',
             'Depth' => $depth
         ), $body);
         
