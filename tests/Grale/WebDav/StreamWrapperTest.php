@@ -94,7 +94,7 @@ class StreamWrapperTest extends TestCase
     public function testStreamOpenWithUnsupportedModeTriggersError($mode)
     {
 		$this->expectWarningMessage("Failed to open stream");
-		$this->expectException(\PHPUnit\Framework\Error\Warning::class);
+		$this->expectWarning();
 		fopen('webdav://test', $mode);
     }
 
@@ -216,7 +216,7 @@ class StreamWrapperTest extends TestCase
 	public function testMakeDirectoryRecursively()
     {
 		$this->expectExceptionMessage("WebDAV stream wrapper does not allow to create directories recursively");
-		$this->expectException(\PHPUnit\Framework\Error\Warning::class);
+		$this->expectWarning();
 		$result = mkdir('webdav://www.foo.bar/newcontainer', 0777, true);
         $this->assertFalse($result);
     }
